@@ -165,6 +165,7 @@ func newRouter(config runtimeConfig) http.Handler {
 	if len(config.BasemapStyle.StyleJSON) > 0 {
 		r.Get("/basemap/style.json", func(w http.ResponseWriter, req *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Cache-Control", "no-store")
 			_, _ = w.Write(config.BasemapStyle.StyleJSON)
 		})
 	}
