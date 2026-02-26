@@ -92,6 +92,7 @@ func fetchAndRewriteMapboxStyle(owner, styleID, token string) ([]byte, error) {
 	}
 
 	rewritten := rewriteMapboxReferences(payload, token)
+	rewritten = sanitizeMapboxStyleForMapLibre(rewritten)
 	encoded, err := json.Marshal(rewritten)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal rewritten style JSON: %w", err)
@@ -145,6 +146,10 @@ func rewriteStyleReference(raw, token string) string {
 }
 
 func withToken(rawURL, token string) string {
+	if strings.Contains(rawURL, "{fontstack}") || strings.Contains(rawURL, "{range}") {
+		return appendAccessToken(rawURL, token)
+	}
+
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return rawURL
@@ -155,7 +160,60 @@ func withToken(rawURL, token string) string {
 		query.Set("access_token", token)
 	}
 	parsed.RawQuery = query.Encode()
-	return parsed.String()
+	return decodeBracedTokens(parsed.String())
+}
+
+func appendAccessToken(rawURL, token string) string {
+	if strings.TrimSpace(rawURL) == "" || strings.Contains(rawURL, "access_token=") {
+		return rawURL
+	}
+	separator := "?"
+	if strings.Contains(rawURL, "?") {
+		separator = "&"
+	}
+	return rawURL + separator + "access_token=" + url.QueryEscape(token)
+}
+
+func decodeBracedTokens(raw string) string {
+	replacer := strings.NewReplacer(
+		"%7B", "{",
+		"%7D", "}",
+		"%7b", "{",
+		"%7d", "}",
+	)
+	return replacer.Replace(raw)
+}
+
+func sanitizeMapboxStyleForMapLibre(payload any) any {
+	root, ok := payload.(map[string]any)
+	if !ok {
+		return payload
+	}
+
+	// Mapbox style API adds fields that are outside the style-spec used by MapLibre.
+	delete(root, "owner")
+	delete(root, "id")
+	delete(root, "created")
+	delete(root, "modified")
+	delete(root, "visibility")
+	delete(root, "draft")
+	delete(root, "protected")
+
+	sources, ok := root["sources"].(map[string]any)
+	if !ok {
+		return root
+	}
+
+	for _, sourceValue := range sources {
+		source, ok := sourceValue.(map[string]any)
+		if !ok {
+			continue
+		}
+		// "name" is commonly present in Mapbox source descriptors but not in MapLibre source schema.
+		delete(source, "name")
+	}
+
+	return root
 }
 
 func normalizeMapboxStyle(raw string) (owner string, styleID string) {

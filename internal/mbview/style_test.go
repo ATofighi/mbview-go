@@ -39,6 +39,17 @@ func TestRewriteStyleReference(t *testing.T) {
 	if !strings.Contains(httpURL, "access_token=pk.test") {
 		t.Fatalf("missing token in http mapbox URL: %s", httpURL)
 	}
+	if !strings.Contains(httpURL, "{fontstack}") || !strings.Contains(httpURL, "{range}") {
+		t.Fatalf("font tokens must be preserved: %s", httpURL)
+	}
+
+	fontURL := rewriteStyleReference("mapbox://fonts/mapbox/{fontstack}/{range}.pbf", token)
+	if !strings.Contains(fontURL, "{fontstack}") || !strings.Contains(fontURL, "{range}") {
+		t.Fatalf("mapbox font tokens must be preserved: %s", fontURL)
+	}
+	if !strings.Contains(fontURL, "access_token=pk.test") {
+		t.Fatalf("missing token in mapbox font URL: %s", fontURL)
+	}
 }
 
 func TestResolveCustomBasemapFile(t *testing.T) {
@@ -57,5 +68,39 @@ func TestResolveCustomBasemapFile(t *testing.T) {
 	}
 	if len(basemap.StyleJSON) == 0 {
 		t.Fatal("expected style JSON bytes")
+	}
+}
+
+func TestSanitizeMapboxStyleForMapLibre(t *testing.T) {
+	input := map[string]any{
+		"version": 8,
+		"owner":   "mapbox",
+		"id":      "dark-v11",
+		"sources": map[string]any{
+			"composite": map[string]any{
+				"type": "vector",
+				"url":  "mapbox://mapbox.mapbox-streets-v8",
+				"name": "Mapbox Streets",
+			},
+		},
+	}
+
+	outputAny := sanitizeMapboxStyleForMapLibre(input)
+	output, ok := outputAny.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map output, got %T", outputAny)
+	}
+
+	if _, exists := output["owner"]; exists {
+		t.Fatal("owner should be removed")
+	}
+	if _, exists := output["id"]; exists {
+		t.Fatal("id should be removed")
+	}
+
+	sources := output["sources"].(map[string]any)
+	composite := sources["composite"].(map[string]any)
+	if _, exists := composite["name"]; exists {
+		t.Fatal("source.name should be removed")
 	}
 }
