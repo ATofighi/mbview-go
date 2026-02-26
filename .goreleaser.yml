@@ -8,9 +8,9 @@ before:
     - go test ./...
 
 builds:
-  - id: mbview-go
-    main: ./cmd/mbview-go
-    binary: mbview-go
+  - id: mbview
+    main: ./cmd/mbview
+    binary: mbview
     env:
       - CGO_ENABLED=0
     ldflags:

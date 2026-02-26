@@ -24,17 +24,17 @@ The original `mbview` is discontinued and no longer practical on newer Node.js v
 ### From source
 
 ```bash
-go install github.com/mbview-go/mbview-go/cmd/mbview-go@latest
+go install github.com/mbview-go/mbview-go/cmd/mbview@latest
 ```
 
 ### From releases
 
-Download the archive for your platform from GitHub Releases and run `mbview-go`.
+Download the archive for your platform from GitHub Releases and run `mbview`.
 
 ## Usage
 
 ```bash
-mbview-go [options] FILE1.mbtiles [FILE2.mbtiles ...]
+mbview [options] FILE1.mbtiles [FILE2.mbtiles ...]
 ```
 
 ### Default Mapbox basemap mode
@@ -43,7 +43,7 @@ If you do not provide `--basemap-style-url`, set a Mapbox public token:
 
 ```bash
 export MAPBOX_ACCESS_TOKEN='pk.XXXX'
-mbview-go --port 9000 ./roads.mbtiles ./places.mbtiles
+mbview --port 9000 ./roads.mbtiles ./places.mbtiles
 ```
 
 ### Custom basemap style mode
@@ -51,13 +51,13 @@ mbview-go --port 9000 ./roads.mbtiles ./places.mbtiles
 A custom style JSON URL or local file skips Mapbox token requirements:
 
 ```bash
-mbview-go --basemap-style-url https://demotiles.maplibre.org/style.json ./roads.mbtiles
+mbview --basemap-style-url https://demotiles.maplibre.org/style.json ./roads.mbtiles
 ```
 
 or
 
 ```bash
-mbview-go --basemap-style-url ./style.json ./roads.mbtiles
+mbview --basemap-style-url ./style.json ./roads.mbtiles
 ```
 
 ## CLI options

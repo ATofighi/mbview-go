@@ -12,7 +12,7 @@ import (
 // Version is stamped at build time with -ldflags.
 var Version = "dev"
 
-const defaultUsage = `usage: mbview-go [options] [files]
+const defaultUsage = `usage: mbview [options] [files]
 
  --port sets port to use (default: 3000)
  --host sets host to use (default: localhost)
@@ -49,7 +49,7 @@ type Options struct {
 func ParseOptions(args []string, getenv func(string) string) (Options, error) {
 	var opts Options
 
-	flags := pflag.NewFlagSet("mbview-go", pflag.ContinueOnError)
+	flags := pflag.NewFlagSet("mbview", pflag.ContinueOnError)
 	flags.SortFlags = false
 	flags.Usage = func() {}
 
