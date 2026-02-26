@@ -20,6 +20,7 @@ The original `mbview` is discontinued and no longer practical on newer Node.js v
 - `mbview`-style CLI workflow for one or more `.mbtiles` files.
 - MapLibre frontend runtime for vector and raster preview.
 - Multiple sources served from a single local server.
+- Per-source toggle controls in the frontend menu when multiple MBTiles are loaded.
 - Optional automatic browser opening.
 - Basemap modes:
   - custom style JSON URL/file (`--basemap-style-url`)
@@ -84,6 +85,7 @@ mbview --basemap-style-url ./style.json ./roads.mbtiles
 
 - Mixed MBTiles formats in one run are not supported (all inputs must match).
 - Tile endpoints are served as `/{source}/{z}/{x}/{y}.{format}`.
+- In the map UI, open `Menu` and use `Sources` checkboxes to show/hide each MBTiles source.
 - Style rendering is powered by [MapLibre GL JS](https://maplibre.org/maplibre-gl-js/docs/).
 
 ## Development
