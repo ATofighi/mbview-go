@@ -1,0 +1,61 @@
+package mbview
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestNormalizeMapboxStyle(t *testing.T) {
+	owner, style := normalizeMapboxStyle("dark")
+	if owner != "mapbox" || style != "dark-v11" {
+		t.Fatalf("unexpected normalize output: %s/%s", owner, style)
+	}
+
+	owner, style = normalizeMapboxStyle("customuser/customstyle")
+	if owner != "customuser" || style != "customstyle" {
+		t.Fatalf("unexpected custom style output: %s/%s", owner, style)
+	}
+}
+
+func TestRewriteStyleReference(t *testing.T) {
+	token := "pk.test"
+
+	styleURL := rewriteStyleReference("mapbox://styles/mapbox/streets-v12", token)
+	if !strings.Contains(styleURL, "https://api.mapbox.com/styles/v1/mapbox/streets-v12") {
+		t.Fatalf("unexpected style URL: %s", styleURL)
+	}
+	if !strings.Contains(styleURL, "access_token=pk.test") {
+		t.Fatalf("missing token in style URL: %s", styleURL)
+	}
+
+	tileJSONURL := rewriteStyleReference("mapbox://mapbox.mapbox-streets-v8", token)
+	if !strings.Contains(tileJSONURL, "https://api.mapbox.com/v4/mapbox.mapbox-streets-v8.json") {
+		t.Fatalf("unexpected tilejson URL: %s", tileJSONURL)
+	}
+
+	httpURL := rewriteStyleReference("https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf", token)
+	if !strings.Contains(httpURL, "access_token=pk.test") {
+		t.Fatalf("missing token in http mapbox URL: %s", httpURL)
+	}
+}
+
+func TestResolveCustomBasemapFile(t *testing.T) {
+	tmp := t.TempDir()
+	styleFile := filepath.Join(tmp, "style.json")
+	if err := os.WriteFile(styleFile, []byte(`{"version":8,"sources":{},"layers":[]}`), 0o600); err != nil {
+		t.Fatalf("failed to write style file: %v", err)
+	}
+
+	basemap, err := resolveCustomBasemap(styleFile)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if basemap.StyleURL != "/basemap/style.json" {
+		t.Fatalf("unexpected style url: %s", basemap.StyleURL)
+	}
+	if len(basemap.StyleJSON) == 0 {
+		t.Fatal("expected style JSON bytes")
+	}
+}
