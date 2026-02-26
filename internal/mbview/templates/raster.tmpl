@@ -18,13 +18,55 @@
         linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%, #eee 100%);
     }
     #map { position: absolute; inset: 0; }
+    #menu {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 2;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 10px;
+      cursor: pointer;
+    }
+    #menu-container {
+      position: absolute;
+      top: 54px;
+      right: 10px;
+      z-index: 2;
+      width: 220px;
+      display: none;
+      padding: 14px;
+      border-radius: 6px;
+      background: #fff;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+      font-size: 13px;
+    }
+    #menu-container h4 {
+      margin: 0 0 8px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: #555;
+    }
+    #menu-container label {
+      display: block;
+      margin: 4px 0;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
+<button id="menu" type="button">Menu</button>
+<div id="menu-container">
+  <h4>Sources</h4>
+  <div id="source-list"></div>
+</div>
 <div id="map"></div>
 <script>
 const config = {{.ConfigJSON}};
-const source = config.sources[0];
+const sourceVisibility = {};
 
 const map = new maplibregl.Map({
   container: 'map',
@@ -37,18 +79,56 @@ map.addControl(new maplibregl.NavigationControl(), 'top-left');
 
 map.on('load', () => {
   const origin = window.location.origin;
-  map.addSource(source.id, {
-    type: 'raster',
-    tiles: [`${origin}/${source.id}/{z}/{x}/{y}.${source.format}`],
-    tileSize: 256,
-    maxzoom: source.maxzoom
+  config.sources.forEach((source) => {
+    sourceVisibility[source.id] = true;
+    map.addSource(source.id, {
+      type: 'raster',
+      tiles: [`${origin}/${source.id}/{z}/{x}/{y}.${source.format}`],
+      tileSize: 256,
+      maxzoom: source.maxzoom
+    });
+
+    map.addLayer({
+      id: `${source.id}-raster`,
+      type: 'raster',
+      source: source.id
+    });
   });
 
-  map.addLayer({
-    id: `${source.id}-raster`,
-    type: 'raster',
-    source: source.id
+  renderSourceToggles();
+  applySourceVisibility();
+});
+
+function applySourceVisibility() {
+  config.sources.forEach((source) => {
+    const layerID = `${source.id}-raster`;
+    if (!map.getLayer(layerID)) return;
+    map.setLayoutProperty(layerID, 'visibility', sourceVisibility[source.id] ? 'visible' : 'none');
   });
+}
+
+function renderSourceToggles() {
+  const container = document.querySelector('#source-list');
+  container.innerHTML = '';
+
+  config.sources.forEach((source) => {
+    const row = document.createElement('label');
+    row.innerHTML = `<input type="checkbox" data-source-id="${source.id}" checked /> ${source.id}`;
+    container.appendChild(row);
+  });
+
+  container.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+    checkbox.addEventListener('change', (event) => {
+      const sourceID = event.target.getAttribute('data-source-id');
+      sourceVisibility[sourceID] = event.target.checked;
+      applySourceVisibility();
+    });
+  });
+}
+
+document.querySelector('#menu').addEventListener('click', () => {
+  const panel = document.querySelector('#menu-container');
+  panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
 });
 </script>
 </body>

@@ -91,6 +91,9 @@
 
   <h4>Tiles</h4>
   <label><input id="show-tiles" type="checkbox" /> show tile boundaries</label>
+
+  <h4>Sources</h4>
+  <div id="source-list"></div>
 </div>
 
 <div id="map"></div>
@@ -102,6 +105,9 @@ const layers = {
   lines: [],
   polygons: []
 };
+const sourceLayers = {};
+const sourceVisibility = {};
+let activeFilter = 'all';
 
 const colors = [
   '#FC49A3', '#CC66FF', '#66CCFF', '#66FFCC', '#00FF00',
@@ -125,6 +131,13 @@ map.addControl(new maplibregl.NavigationControl(), 'top-left');
 map.on('load', () => {
   const origin = window.location.origin;
   config.sources.forEach((source) => {
+    sourceLayers[source.id] = {
+      pts: [],
+      lines: [],
+      polygons: []
+    };
+    sourceVisibility[source.id] = true;
+
     map.addSource(source.id, {
       type: 'vector',
       tiles: [`${origin}/${source.id}/{z}/{x}/{y}.${source.format}`],
@@ -133,9 +146,14 @@ map.on('load', () => {
 
     source.vectorLayers.forEach((layer) => {
       const layerColor = randomColor();
+      const layerPrefix = `${source.id}__${layer.id}`;
+      const polygonsLayerID = `${layerPrefix}-polygons`;
+      const polygonsOutlineLayerID = `${layerPrefix}-polygons-outline`;
+      const linesLayerID = `${layerPrefix}-lines`;
+      const pointsLayerID = `${layerPrefix}-pts`;
 
       map.addLayer({
-        id: `${layer.id}-polygons`,
+        id: polygonsLayerID,
         type: 'fill',
         source: source.id,
         'source-layer': layer.id,
@@ -147,7 +165,7 @@ map.on('load', () => {
       });
 
       map.addLayer({
-        id: `${layer.id}-polygons-outline`,
+        id: polygonsOutlineLayerID,
         type: 'line',
         source: source.id,
         'source-layer': layer.id,
@@ -164,7 +182,7 @@ map.on('load', () => {
       });
 
       map.addLayer({
-        id: `${layer.id}-lines`,
+        id: linesLayerID,
         type: 'line',
         source: source.id,
         'source-layer': layer.id,
@@ -181,7 +199,7 @@ map.on('load', () => {
       });
 
       map.addLayer({
-        id: `${layer.id}-pts`,
+        id: pointsLayerID,
         type: 'circle',
         source: source.id,
         'source-layer': layer.id,
@@ -193,12 +211,20 @@ map.on('load', () => {
         }
       });
 
-      layers.polygons.push(`${layer.id}-polygons`);
-      layers.polygons.push(`${layer.id}-polygons-outline`);
-      layers.lines.push(`${layer.id}-lines`);
-      layers.pts.push(`${layer.id}-pts`);
+      layers.polygons.push(polygonsLayerID);
+      layers.polygons.push(polygonsOutlineLayerID);
+      layers.lines.push(linesLayerID);
+      layers.pts.push(pointsLayerID);
+
+      sourceLayers[source.id].polygons.push(polygonsLayerID);
+      sourceLayers[source.id].polygons.push(polygonsOutlineLayerID);
+      sourceLayers[source.id].lines.push(linesLayerID);
+      sourceLayers[source.id].pts.push(pointsLayerID);
     });
   });
+
+  renderSourceToggles();
+  applyLayerVisibility();
 });
 
 function displayValue(value, propName) {
@@ -271,30 +297,67 @@ function paint(selectedLayers, visibility) {
   });
 }
 
-function applyFilter() {
-  if (document.querySelector('#filter-all').checked) {
-    paint(layers.pts, 'visible');
-    paint(layers.lines, 'visible');
-    paint(layers.polygons, 'visible');
-  } else if (document.querySelector('#filter-pts').checked) {
-    paint(layers.pts, 'visible');
-    paint(layers.lines, 'none');
-    paint(layers.polygons, 'none');
-  } else if (document.querySelector('#filter-lines').checked) {
-    paint(layers.pts, 'none');
-    paint(layers.lines, 'visible');
-    paint(layers.polygons, 'none');
-  } else {
-    paint(layers.pts, 'none');
-    paint(layers.lines, 'none');
-    paint(layers.polygons, 'visible');
+function categoryVisibility() {
+  if (activeFilter === 'pts') {
+    return { pts: true, lines: false, polygons: false };
   }
+  if (activeFilter === 'lines') {
+    return { pts: false, lines: true, polygons: false };
+  }
+  if (activeFilter === 'polygons') {
+    return { pts: false, lines: false, polygons: true };
+  }
+  return { pts: true, lines: true, polygons: true };
 }
 
-document.querySelector('#filter-all').addEventListener('change', applyFilter);
-document.querySelector('#filter-polygons').addEventListener('change', applyFilter);
-document.querySelector('#filter-lines').addEventListener('change', applyFilter);
-document.querySelector('#filter-pts').addEventListener('change', applyFilter);
+function applyLayerVisibility() {
+  const category = categoryVisibility();
+  config.sources.forEach((source) => {
+    const sourceEnabled = sourceVisibility[source.id] !== false;
+    const grouped = sourceLayers[source.id];
+    if (!grouped) return;
+
+    paint(grouped.pts, sourceEnabled && category.pts ? 'visible' : 'none');
+    paint(grouped.lines, sourceEnabled && category.lines ? 'visible' : 'none');
+    paint(grouped.polygons, sourceEnabled && category.polygons ? 'visible' : 'none');
+  });
+}
+
+function renderSourceToggles() {
+  const container = document.querySelector('#source-list');
+  container.innerHTML = '';
+  config.sources.forEach((source) => {
+    const row = document.createElement('label');
+    row.innerHTML = `<input type="checkbox" data-source-id="${source.id}" checked /> ${source.id}`;
+    container.appendChild(row);
+  });
+
+  container.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+    checkbox.addEventListener('change', (event) => {
+      const sourceID = event.target.getAttribute('data-source-id');
+      sourceVisibility[sourceID] = event.target.checked;
+      applyLayerVisibility();
+      popup.remove();
+    });
+  });
+}
+
+document.querySelector('#filter-all').addEventListener('change', () => {
+  activeFilter = 'all';
+  applyLayerVisibility();
+});
+document.querySelector('#filter-polygons').addEventListener('change', () => {
+  activeFilter = 'polygons';
+  applyLayerVisibility();
+});
+document.querySelector('#filter-lines').addEventListener('change', () => {
+  activeFilter = 'lines';
+  applyLayerVisibility();
+});
+document.querySelector('#filter-pts').addEventListener('change', () => {
+  activeFilter = 'pts';
+  applyLayerVisibility();
+});
 
 document.querySelector('#show-popup').addEventListener('change', (event) => {
   wantPopup = event.target.checked;
