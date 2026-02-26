@@ -77,6 +77,9 @@ func TestSanitizeMapboxStyleForMapLibre(t *testing.T) {
 		"name":    "Mapbox Dark",
 		"owner":   "mapbox",
 		"id":      "dark-v11",
+		"projection": map[string]any{
+			"name": "globe",
+		},
 		"sources": map[string]any{
 			"composite": map[string]any{
 				"type": "vector",
@@ -100,6 +103,14 @@ func TestSanitizeMapboxStyleForMapLibre(t *testing.T) {
 	}
 	if _, exists := output["id"]; exists {
 		t.Fatal("id should be removed")
+	}
+
+	projection := output["projection"].(map[string]any)
+	if projection["type"] != "globe" {
+		t.Fatalf("expected projection.type=globe, got %#v", projection["type"])
+	}
+	if _, exists := projection["name"]; exists {
+		t.Fatal("projection.name should be removed")
 	}
 
 	sources := output["sources"].(map[string]any)

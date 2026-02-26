@@ -200,6 +200,15 @@ func sanitizeMapboxStyleForMapLibre(payload any) any {
 	delete(root, "draft")
 	delete(root, "protected")
 
+	// Mapbox emits {"projection":{"name":"globe"}} while MapLibre expects "type".
+	if projection, ok := root["projection"].(map[string]any); ok {
+		if name, ok := projection["name"].(string); ok && strings.TrimSpace(name) != "" {
+			projection["type"] = name
+			delete(projection, "name")
+			root["projection"] = projection
+		}
+	}
+
 	sources, ok := root["sources"].(map[string]any)
 	if !ok {
 		return root
