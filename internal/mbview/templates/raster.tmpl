@@ -36,9 +36,10 @@ const map = new maplibregl.Map({
 map.addControl(new maplibregl.NavigationControl(), 'top-left');
 
 map.on('load', () => {
+  const origin = window.location.origin;
   map.addSource(source.id, {
     type: 'raster',
-    tiles: [`/${source.id}/{z}/{x}/{y}.${source.format}`],
+    tiles: [`${origin}/${source.id}/{z}/{x}/{y}.${source.format}`],
     tileSize: 256,
     maxzoom: source.maxzoom
   });

@@ -123,10 +123,11 @@ const map = new maplibregl.Map({
 map.addControl(new maplibregl.NavigationControl(), 'top-left');
 
 map.on('load', () => {
+  const origin = window.location.origin;
   config.sources.forEach((source) => {
     map.addSource(source.id, {
       type: 'vector',
-      tiles: [`/${source.id}/{z}/{x}/{y}.${source.format}`],
+      tiles: [`${origin}/${source.id}/{z}/{x}/{y}.${source.format}`],
       maxzoom: source.maxzoom
     });
 
