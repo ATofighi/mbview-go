@@ -107,7 +107,12 @@ const layers = {
 };
 const sourceLayers = {};
 const sourceVisibility = {};
-let activeFilter = 'all';
+const STORAGE_KEYS = {
+  filter: 'mbview.ui.filter',
+  popup: 'mbview.ui.popup',
+  tiles: 'mbview.ui.tiles'
+};
+const ALLOWED_FILTERS = new Set(['all', 'polygons', 'lines', 'pts']);
 
 const colors = [
   '#FC49A3', '#CC66FF', '#66CCFF', '#66FFCC', '#00FF00',
@@ -118,6 +123,46 @@ function randomColor() {
   return colors[Math.floor(Math.random() * colors.length)];
 }
 
+function readLocalStorage(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeLocalStorage(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch (error) {
+    // no-op when storage is unavailable
+  }
+}
+
+function loadFilterPreference() {
+  const stored = readLocalStorage(STORAGE_KEYS.filter);
+  return ALLOWED_FILTERS.has(stored) ? stored : 'all';
+}
+
+function loadBoolPreference(key) {
+  return readLocalStorage(key) === 'true';
+}
+
+let activeFilter = loadFilterPreference();
+let wantPopup = loadBoolPreference(STORAGE_KEYS.popup);
+let wantTileBounds = loadBoolPreference(STORAGE_KEYS.tiles);
+
+function syncControlsFromState() {
+  document.querySelector('#filter-all').checked = activeFilter === 'all';
+  document.querySelector('#filter-polygons').checked = activeFilter === 'polygons';
+  document.querySelector('#filter-lines').checked = activeFilter === 'lines';
+  document.querySelector('#filter-pts').checked = activeFilter === 'pts';
+  document.querySelector('#show-popup').checked = wantPopup;
+  document.querySelector('#show-tiles').checked = wantTileBounds;
+}
+
+syncControlsFromState();
+
 const map = new maplibregl.Map({
   container: 'map',
   style: config.basemapStyleURL,
@@ -127,6 +172,7 @@ const map = new maplibregl.Map({
   maxZoom: 30
 });
 map.addControl(new maplibregl.NavigationControl(), 'top-left');
+map.showTileBoundaries = wantTileBounds;
 
 map.on('load', () => {
   const origin = window.location.origin;
@@ -264,8 +310,6 @@ const popup = new maplibregl.Popup({
   closeOnClick: false
 });
 
-let wantPopup = false;
-
 map.on('mousemove', (event) => {
   const threshold = 3;
   const queryBox = [
@@ -343,29 +387,40 @@ function renderSourceToggles() {
 }
 
 document.querySelector('#filter-all').addEventListener('change', () => {
+  if (!document.querySelector('#filter-all').checked) return;
   activeFilter = 'all';
+  writeLocalStorage(STORAGE_KEYS.filter, activeFilter);
   applyLayerVisibility();
 });
 document.querySelector('#filter-polygons').addEventListener('change', () => {
+  if (!document.querySelector('#filter-polygons').checked) return;
   activeFilter = 'polygons';
+  writeLocalStorage(STORAGE_KEYS.filter, activeFilter);
   applyLayerVisibility();
 });
 document.querySelector('#filter-lines').addEventListener('change', () => {
+  if (!document.querySelector('#filter-lines').checked) return;
   activeFilter = 'lines';
+  writeLocalStorage(STORAGE_KEYS.filter, activeFilter);
   applyLayerVisibility();
 });
 document.querySelector('#filter-pts').addEventListener('change', () => {
+  if (!document.querySelector('#filter-pts').checked) return;
   activeFilter = 'pts';
+  writeLocalStorage(STORAGE_KEYS.filter, activeFilter);
   applyLayerVisibility();
 });
 
 document.querySelector('#show-popup').addEventListener('change', (event) => {
   wantPopup = event.target.checked;
+  writeLocalStorage(STORAGE_KEYS.popup, wantPopup ? 'true' : 'false');
   if (!wantPopup) popup.remove();
 });
 
 document.querySelector('#show-tiles').addEventListener('change', (event) => {
-  map.showTileBoundaries = event.target.checked;
+  wantTileBounds = event.target.checked;
+  map.showTileBoundaries = wantTileBounds;
+  writeLocalStorage(STORAGE_KEYS.tiles, wantTileBounds ? 'true' : 'false');
 });
 
 document.querySelector('#menu').addEventListener('click', () => {

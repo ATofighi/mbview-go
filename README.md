@@ -86,6 +86,7 @@ mbview --basemap-style-url ./style.json ./roads.mbtiles
 - Mixed MBTiles formats in one run are not supported (all inputs must match).
 - Tile endpoints are served as `/{source}/{z}/{x}/{y}.{format}`.
 - In the map UI, open `Menu` and use `Sources` checkboxes to show/hide each MBTiles source.
+- Vector UI preferences for `Filter`, `Popup`, and `Tiles` are remembered in browser localStorage.
 - Style rendering is powered by [MapLibre GL JS](https://maplibre.org/maplibre-gl-js/docs/).
 
 ## Development
