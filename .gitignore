@@ -1,0 +1,12 @@
+# Binaries
+/bin/
+/dist/
+
+# Coverage and test outputs
+*.out
+coverage.txt
+
+# Editors
+.idea/
+.vscode/
+.DS_Store
