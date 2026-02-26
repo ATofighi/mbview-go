@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download dependencies
+        env:
+          GOPROXY: https://proxy.golang.org,direct
+        run: go mod download
+
+      - name: Run tests
+        env:
+          GOPROXY: https://proxy.golang.org,direct
+        run: go test ./...
+
+      - name: Run vet
+        env:
+          GOPROXY: https://proxy.golang.org,direct
+        run: go vet ./...
