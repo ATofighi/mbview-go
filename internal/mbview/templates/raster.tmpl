@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>mbview-go - raster</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://unpkg.com/maplibre-gl@5.19.0/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@5.19.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-position: 0 0, 10px 10px;
+      background-size: 20px 20px;
+      background-color: #fff;
+      background-image:
+        linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%, #eee 100%),
+        linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%, #eee 100%);
+    }
+    #map { position: absolute; inset: 0; }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+const config = {{.ConfigJSON}};
+const source = config.sources[0];
+
+const map = new maplibregl.Map({
+  container: 'map',
+  style: config.basemapStyleURL,
+  center: config.center,
+  zoom: config.zoom,
+  hash: true
+});
+map.addControl(new maplibregl.NavigationControl(), 'top-left');
+
+map.on('load', () => {
+  map.addSource(source.id, {
+    type: 'raster',
+    tiles: [`/${source.id}/{z}/{x}/{y}.${source.format}`],
+    tileSize: 256,
+    maxzoom: source.maxzoom
+  });
+
+  map.addLayer({
+    id: `${source.id}-raster`,
+    type: 'raster',
+    source: source.id
+  });
+});
+</script>
+</body>
+</html>

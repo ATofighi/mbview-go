@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>mbview-go - vector</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://unpkg.com/maplibre-gl@5.19.0/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@5.19.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <style>
+    body { margin: 0; padding: 0; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+    #map { position: absolute; inset: 0; }
+    #menu {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 2;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 10px;
+      cursor: pointer;
+    }
+    #menu-container {
+      position: absolute;
+      top: 54px;
+      right: 10px;
+      z-index: 2;
+      width: 220px;
+      display: none;
+      padding: 14px;
+      border-radius: 6px;
+      background: #fff;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+      font-size: 13px;
+    }
+    #menu-container h4 {
+      margin: 0 0 8px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: #555;
+    }
+    #menu-container label {
+      display: block;
+      margin: 4px 0;
+      cursor: pointer;
+    }
+    .mbview_popup {
+      color: #333;
+      display: table;
+      font-size: 11px;
+      max-height: 280px;
+      overflow: auto;
+    }
+    .mbview_feature:not(:last-child) {
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+    }
+    .mbview_layer {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .mbview_layer::before {
+      content: '#';
+    }
+    .mbview_property {
+      display: table-row;
+    }
+    .mbview_property-name,
+    .mbview_property-value {
+      display: table-cell;
+      vertical-align: top;
+      padding-right: 8px;
+    }
+  </style>
+</head>
+<body>
+<button id="menu" type="button">Menu</button>
+<div id="menu-container">
+  <h4>Filter</h4>
+  <label><input id="filter-all" type="radio" name="filter" checked /> all</label>
+  <label><input id="filter-polygons" type="radio" name="filter" /> polygons</label>
+  <label><input id="filter-lines" type="radio" name="filter" /> lines</label>
+  <label><input id="filter-pts" type="radio" name="filter" /> points</label>
+
+  <h4>Popup</h4>
+  <label><input id="show-popup" type="checkbox" /> show attributes</label>
+
+  <h4>Tiles</h4>
+  <label><input id="show-tiles" type="checkbox" /> show tile boundaries</label>
+</div>
+
+<div id="map"></div>
+
+<script>
+const config = {{.ConfigJSON}};
+const layers = {
+  pts: [],
+  lines: [],
+  polygons: []
+};
+
+const colors = [
+  '#FC49A3', '#CC66FF', '#66CCFF', '#66FFCC', '#00FF00',
+  '#FFCC66', '#FF6666', '#FF0000', '#FF8000', '#FFFF66', '#00FFFF'
+];
+
+function randomColor() {
+  return colors[Math.floor(Math.random() * colors.length)];
+}
+
+const map = new maplibregl.Map({
+  container: 'map',
+  style: config.basemapStyleURL,
+  center: config.center,
+  zoom: config.zoom,
+  hash: true,
+  maxZoom: 30
+});
+map.addControl(new maplibregl.NavigationControl(), 'top-left');
+
+map.on('load', () => {
+  config.sources.forEach((source) => {
+    map.addSource(source.id, {
+      type: 'vector',
+      tiles: [`/${source.id}/{z}/{x}/{y}.${source.format}`],
+      maxzoom: source.maxzoom
+    });
+
+    source.vectorLayers.forEach((layer) => {
+      const layerColor = randomColor();
+
+      map.addLayer({
+        id: `${layer.id}-polygons`,
+        type: 'fill',
+        source: source.id,
+        'source-layer': layer.id,
+        filter: ['==', '$type', 'Polygon'],
+        paint: {
+          'fill-opacity': 0.1,
+          'fill-color': layerColor
+        }
+      });
+
+      map.addLayer({
+        id: `${layer.id}-polygons-outline`,
+        type: 'line',
+        source: source.id,
+        'source-layer': layer.id,
+        filter: ['==', '$type', 'Polygon'],
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': layerColor,
+          'line-width': 1,
+          'line-opacity': 0.75
+        }
+      });
+
+      map.addLayer({
+        id: `${layer.id}-lines`,
+        type: 'line',
+        source: source.id,
+        'source-layer': layer.id,
+        filter: ['==', '$type', 'LineString'],
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': layerColor,
+          'line-width': 1,
+          'line-opacity': 0.75
+        }
+      });
+
+      map.addLayer({
+        id: `${layer.id}-pts`,
+        type: 'circle',
+        source: source.id,
+        'source-layer': layer.id,
+        filter: ['==', '$type', 'Point'],
+        paint: {
+          'circle-color': layerColor,
+          'circle-radius': 2.5,
+          'circle-opacity': 0.75
+        }
+      });
+
+      layers.polygons.push(`${layer.id}-polygons`);
+      layers.polygons.push(`${layer.id}-polygons-outline`);
+      layers.lines.push(`${layer.id}-lines`);
+      layers.pts.push(`${layer.id}-pts`);
+    });
+  });
+});
+
+function displayValue(value, propName) {
+  if (propName === '@timestamp') {
+    return `${value}<br>[ ${new Date(value * 1000).toISOString()} ]`;
+  }
+  if (value === undefined || value === null) return String(value);
+  if (typeof value === 'object' || typeof value === 'number' || typeof value === 'string') {
+    return value.toString();
+  }
+  return String(value);
+}
+
+function renderProperty(name, value) {
+  return `<div class="mbview_property"><div class="mbview_property-name">${name}</div><div class="mbview_property-value">${displayValue(value, name)}</div></div>`;
+}
+
+function renderLayer(layerID) {
+  return `<div class="mbview_layer">${layerID}</div>`;
+}
+
+function renderProperties(feature) {
+  const sourceLayer = renderLayer(feature.layer['source-layer'] || feature.layer.source);
+  const idProperty = renderProperty('$id', feature.id);
+  const typeProperty = renderProperty('$type', feature.geometry.type);
+  const props = Object.keys(feature.properties || {}).map((name) => renderProperty(name, feature.properties[name]));
+  const fixed = feature.id ? [sourceLayer, idProperty, typeProperty] : [sourceLayer, typeProperty];
+  return fixed.concat(props).join('');
+}
+
+function renderFeatures(features) {
+  return features.map((feature) => `<div class="mbview_feature">${renderProperties(feature)}</div>`).join('');
+}
+
+const popup = new maplibregl.Popup({
+  closeButton: false,
+  closeOnClick: false
+});
+
+let wantPopup = false;
+
+map.on('mousemove', (event) => {
+  const threshold = 3;
+  const queryBox = [
+    [event.point.x - threshold, event.point.y + threshold],
+    [event.point.x + threshold, event.point.y - threshold]
+  ];
+
+  const features = map.queryRenderedFeatures(queryBox, {
+    layers: layers.polygons.concat(layers.lines, layers.pts)
+  }) || [];
+
+  map.getCanvas().style.cursor = features.length ? 'pointer' : '';
+
+  if (!features.length || !wantPopup) {
+    popup.remove();
+    return;
+  }
+
+  popup.setLngLat(event.lngLat)
+    .setHTML(`<div class="mbview_popup">${renderFeatures(features)}</div>`)
+    .addTo(map);
+});
+
+function paint(selectedLayers, visibility) {
+  selectedLayers.forEach((layerID) => {
+    if (map.getLayer(layerID)) {
+      map.setLayoutProperty(layerID, 'visibility', visibility);
+    }
+  });
+}
+
+function applyFilter() {
+  if (document.querySelector('#filter-all').checked) {
+    paint(layers.pts, 'visible');
+    paint(layers.lines, 'visible');
+    paint(layers.polygons, 'visible');
+  } else if (document.querySelector('#filter-pts').checked) {
+    paint(layers.pts, 'visible');
+    paint(layers.lines, 'none');
+    paint(layers.polygons, 'none');
+  } else if (document.querySelector('#filter-lines').checked) {
+    paint(layers.pts, 'none');
+    paint(layers.lines, 'visible');
+    paint(layers.polygons, 'none');
+  } else {
+    paint(layers.pts, 'none');
+    paint(layers.lines, 'none');
+    paint(layers.polygons, 'visible');
+  }
+}
+
+document.querySelector('#filter-all').addEventListener('change', applyFilter);
+document.querySelector('#filter-polygons').addEventListener('change', applyFilter);
+document.querySelector('#filter-lines').addEventListener('change', applyFilter);
+document.querySelector('#filter-pts').addEventListener('change', applyFilter);
+
+document.querySelector('#show-popup').addEventListener('change', (event) => {
+  wantPopup = event.target.checked;
+  if (!wantPopup) popup.remove();
+});
+
+document.querySelector('#show-tiles').addEventListener('change', (event) => {
+  map.showTileBoundaries = event.target.checked;
+});
+
+document.querySelector('#menu').addEventListener('click', () => {
+  popup.remove();
+  const panel = document.querySelector('#menu-container');
+  panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+});
+</script>
+</body>
+</html>
