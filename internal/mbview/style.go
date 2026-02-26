@@ -191,6 +191,7 @@ func sanitizeMapboxStyleForMapLibre(payload any) any {
 	}
 
 	// Mapbox style API adds fields that are outside the style-spec used by MapLibre.
+	delete(root, "name")
 	delete(root, "owner")
 	delete(root, "id")
 	delete(root, "created")

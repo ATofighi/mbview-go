@@ -74,6 +74,7 @@ func TestResolveCustomBasemapFile(t *testing.T) {
 func TestSanitizeMapboxStyleForMapLibre(t *testing.T) {
 	input := map[string]any{
 		"version": 8,
+		"name":    "Mapbox Dark",
 		"owner":   "mapbox",
 		"id":      "dark-v11",
 		"sources": map[string]any{
@@ -91,6 +92,9 @@ func TestSanitizeMapboxStyleForMapLibre(t *testing.T) {
 		t.Fatalf("expected map output, got %T", outputAny)
 	}
 
+	if _, exists := output["name"]; exists {
+		t.Fatal("name should be removed")
+	}
 	if _, exists := output["owner"]; exists {
 		t.Fatal("owner should be removed")
 	}
