@@ -1,4 +1,4 @@
-module github.com/mbview-go/mbview-go
+module github.com/ATofighi/mbview-go
 
 go 1.24.1
 

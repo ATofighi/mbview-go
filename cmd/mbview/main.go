@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/mbview-go/mbview-go/internal/mbview"
+	"github.com/ATofighi/mbview-go/internal/mbview"
 )
 
 func main() {

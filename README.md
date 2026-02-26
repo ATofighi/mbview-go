@@ -4,6 +4,13 @@
 
 The project keeps the local MBTiles inspection workflow from `mbview`, but replaces the legacy Node.js runtime with Go.
 
+## Repository
+
+```bash
+git clone git@github.com:ATofighi/mbview-go.git
+cd mbview-go
+```
+
 ## Why this project exists
 
 The original `mbview` is discontinued and no longer practical on newer Node.js versions. `mbview-go` keeps the same developer experience while remaining easy to install and maintain.
@@ -24,7 +31,7 @@ The original `mbview` is discontinued and no longer practical on newer Node.js v
 ### From source
 
 ```bash
-go install github.com/mbview-go/mbview-go/cmd/mbview@latest
+go install github.com/ATofighi/mbview-go/cmd/mbview@latest
 ```
 
 ### From releases
