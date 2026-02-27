@@ -50,7 +50,9 @@
       color: #333;
       display: table;
       font-size: 11px;
-      max-height: 280px;
+    }
+    .mbview_popup-content {
+      max-height: 320px;
       overflow: auto;
     }
     .mbview_feature:not(:last-child) {
@@ -62,9 +64,6 @@
       display: block;
       font-weight: bold;
       margin-bottom: 4px;
-    }
-    .mbview_layer::before {
-      content: '#';
     }
     .mbview_property {
       display: table-row;
@@ -151,6 +150,7 @@ function loadBoolPreference(key) {
 let activeFilter = loadFilterPreference();
 let wantPopup = loadBoolPreference(STORAGE_KEYS.popup);
 let wantTileBounds = loadBoolPreference(STORAGE_KEYS.tiles);
+const includeSourceInPopupTitle = config.sources.length > 1;
 
 function syncControlsFromState() {
   document.querySelector('#filter-all').checked = activeFilter === 'all';
@@ -293,7 +293,10 @@ function renderLayer(layerID) {
 }
 
 function renderProperties(feature) {
-  const sourceLayer = renderLayer(feature.layer['source-layer'] || feature.layer.source);
+  const layerName = feature.layer['source-layer'] || feature.layer.source || 'unknown-layer';
+  const sourceName = feature.source || feature.layer.source || '';
+  const title = includeSourceInPopupTitle && sourceName ? `${sourceName} #${layerName}` : `#${layerName}`;
+  const sourceLayer = renderLayer(title);
   const idProperty = renderProperty('$id', feature.id);
   const typeProperty = renderProperty('$type', feature.geometry.type);
   const props = Object.keys(feature.properties || {}).map((name) => renderProperty(name, feature.properties[name]));
@@ -305,31 +308,72 @@ function renderFeatures(features) {
   return features.map((feature) => `<div class="mbview_feature">${renderProperties(feature)}</div>`).join('');
 }
 
-const popup = new maplibregl.Popup({
+function renderPopup(features) {
+  return `<div class="mbview_popup-content"><div class="mbview_popup">${renderFeatures(features)}</div></div>`;
+}
+
+function queryFeaturesAtPoint(point) {
+  const threshold = 3;
+  const queryBox = [
+    [point.x - threshold, point.y + threshold],
+    [point.x + threshold, point.y - threshold]
+  ];
+  return map.queryRenderedFeatures(queryBox, {
+    layers: layers.polygons.concat(layers.lines, layers.pts)
+  }) || [];
+}
+
+const hoverPopup = new maplibregl.Popup({
   closeButton: false,
   closeOnClick: false
 });
 
-map.on('mousemove', (event) => {
-  const threshold = 3;
-  const queryBox = [
-    [event.point.x - threshold, event.point.y + threshold],
-    [event.point.x + threshold, event.point.y - threshold]
-  ];
+let pinnedPopup = null;
 
-  const features = map.queryRenderedFeatures(queryBox, {
-    layers: layers.polygons.concat(layers.lines, layers.pts)
-  }) || [];
+function clearPinnedPopup() {
+  if (pinnedPopup) {
+    pinnedPopup.remove();
+    pinnedPopup = null;
+  }
+}
+
+map.on('mousemove', (event) => {
+  const features = queryFeaturesAtPoint(event.point);
 
   map.getCanvas().style.cursor = features.length ? 'pointer' : '';
 
   if (!features.length || !wantPopup) {
-    popup.remove();
+    hoverPopup.remove();
     return;
   }
 
-  popup.setLngLat(event.lngLat)
-    .setHTML(`<div class="mbview_popup">${renderFeatures(features)}</div>`)
+  if (pinnedPopup) {
+    return;
+  }
+
+  hoverPopup.setLngLat(event.lngLat)
+    .setHTML(renderPopup(features))
+    .addTo(map);
+});
+
+map.on('click', (event) => {
+  if (!wantPopup) return;
+
+  const features = queryFeaturesAtPoint(event.point);
+  if (!features.length) return;
+
+  hoverPopup.remove();
+  clearPinnedPopup();
+
+  pinnedPopup = new maplibregl.Popup({
+    closeButton: true,
+    closeOnClick: false
+  });
+  pinnedPopup.on('close', () => {
+    pinnedPopup = null;
+  });
+  pinnedPopup.setLngLat(event.lngLat)
+    .setHTML(renderPopup(features))
     .addTo(map);
 });
 
@@ -381,7 +425,8 @@ function renderSourceToggles() {
       const sourceID = event.target.getAttribute('data-source-id');
       sourceVisibility[sourceID] = event.target.checked;
       applyLayerVisibility();
-      popup.remove();
+      hoverPopup.remove();
+      clearPinnedPopup();
     });
   });
 }
@@ -414,7 +459,10 @@ document.querySelector('#filter-pts').addEventListener('change', () => {
 document.querySelector('#show-popup').addEventListener('change', (event) => {
   wantPopup = event.target.checked;
   writeLocalStorage(STORAGE_KEYS.popup, wantPopup ? 'true' : 'false');
-  if (!wantPopup) popup.remove();
+  if (!wantPopup) {
+    hoverPopup.remove();
+    clearPinnedPopup();
+  }
 });
 
 document.querySelector('#show-tiles').addEventListener('change', (event) => {
@@ -424,7 +472,7 @@ document.querySelector('#show-tiles').addEventListener('change', (event) => {
 });
 
 document.querySelector('#menu').addEventListener('click', () => {
-  popup.remove();
+  hoverPopup.remove();
   const panel = document.querySelector('#menu-container');
   panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
 });
